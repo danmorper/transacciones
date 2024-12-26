@@ -1,0 +1,9 @@
+{
+    "supermercado": ["mercadona", "carrefour", "rewe", "edeka", "norma", "dm-drogerie", "aldi", "kaufland", "netto", "lidl"],
+    "salir": ["El Camioncito", "Damajuana", "Algabaria", "Esquinita"],
+    "ropa": ["decathlon", "zara", "primark", "mango", "Springfield", "pullandbear"],
+    "vuelos": ["ryanair", "vueling", "iberia", "lufthansa", "airfrance", "easyjet", "tap", "swiss", "britishairways", "norwegian"],
+    "lingoda": ["lingoda"],
+    "viajar": ["booking", "airbnb"]
+
+}

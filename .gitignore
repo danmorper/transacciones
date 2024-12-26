@@ -1,0 +1,7 @@
+# virtual environment
+venv/
+#csv files
+*.csv
+
+# Mac OS
+.DS_Store

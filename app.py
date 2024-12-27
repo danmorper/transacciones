@@ -1,8 +1,13 @@
+#app.py
 import streamlit as st
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Dict, Optional
+import os
+import zipfile
+import io
+
 from modules.WiseTracker import WiseTracker  # Asegúrate de que este módulo exista y esté correctamente definido
 
 # Configuración de la página
@@ -172,8 +177,6 @@ def show_transactions(tracker: WiseTracker, csv_path: str):
             tracker.process_data()
             # Resetear el estado para permitir re-procesamiento si es necesario
             st.session_state.processed = False
-            # Reiniciar la aplicación para reflejar los cambios
-            st.experimental_rerun()
         except Exception as e:
             st.error(f"Error al guardar los cambios: {e}")
 
@@ -218,7 +221,9 @@ def show_category_management(tracker: WiseTracker):
                     st.success(f"Categoría '{new_category}' agregada exitosamente.")
                     # Reprocesar las categorías para actualizar las transacciones
                     tracker.process_data()
-                    st.session_state.processed = False
+                    # Limpiar archivos generados anteriores si existen
+                    if 'existing_files' in st.session_state:
+                        del st.session_state.existing_files
                     st.experimental_rerun()
 
     st.markdown("---")
@@ -256,7 +261,9 @@ def show_category_management(tracker: WiseTracker):
                                 st.success(f"Palabra clave '{new_keyword}' agregada a '{selected_category}'.")
                                 # Reprocesar las categorías para actualizar las transacciones
                                 tracker.process_data()
-                                st.session_state.processed = False
+                                # Limpiar archivos generados anteriores si existen
+                                if 'existing_files' in st.session_state:
+                                    del st.session_state.existing_files
                                 st.experimental_rerun()
 
             # Eliminar Palabra Clave
@@ -272,7 +279,9 @@ def show_category_management(tracker: WiseTracker):
                             st.success(f"Palabra clave '{keyword_to_remove}' eliminada de '{selected_category}'.")
                             # Reprocesar las categorías para actualizar las transacciones
                             tracker.process_data()
-                            st.session_state.processed = False
+                            # Limpiar archivos generados anteriores si existen
+                            if 'existing_files' in st.session_state:
+                                del st.session_state.existing_files
                             st.experimental_rerun()
                 else:
                     st.info("No hay palabras clave para eliminar en esta categoría.")
@@ -289,7 +298,9 @@ def show_category_management(tracker: WiseTracker):
                     st.success(f"Categoría '{selected_category}' eliminada exitosamente.")
                     # Reprocesar las categorías para actualizar las transacciones
                     tracker.process_data()
-                    st.session_state.processed = False
+                    # Limpiar archivos generados anteriores si existen
+                    if 'existing_files' in st.session_state:
+                        del st.session_state.existing_files
                     st.experimental_rerun()
 
     st.markdown("---")
@@ -315,30 +326,42 @@ def show_category_management(tracker: WiseTracker):
                     st.success(f"Agregadas {added} palabras clave a '{category_for_keywords}'.")
                     # Reprocesar las categorías para actualizar las transacciones
                     tracker.process_data()
-                    st.session_state.processed = False
-                    st.experimental_rerun()
                 else:
                     st.info("No se agregaron nuevas palabras clave.")
 
     st.markdown("---")
 
-    # Eliminar Palabras Clave de Categorías
-    st.subheader("Eliminar Palabras Clave de Categorías")
-    with st.form("remove_keywords_form"):
-        category_for_removal = st.selectbox("Selecciona una categoría", categories)
-        if tracker.categories[category_for_removal]:
-            keyword_to_delete = st.selectbox("Selecciona una palabra clave para eliminar", tracker.categories[category_for_removal])
-            remove_submitted = st.form_submit_button("Eliminar Palabra Clave")
-            if remove_submitted:
-                tracker.categories[category_for_removal].remove(keyword_to_delete)
-                tracker.save_categories()
-                st.success(f"Palabra clave '{keyword_to_delete}' eliminada de '{category_for_removal}'.")
-                # Reprocesar las categorías para actualizar las transacciones
-                tracker.process_data()
-                st.session_state.processed = False
-                st.experimental_rerun()
-        else:
-            st.info("No hay palabras clave para eliminar en esta categoría.")
+    # **Nueva Sección: Guardar Datos Mensuales**
+    st.subheader("Guardar Datos Mensuales")
+    save_button = st.button("Guardar Datos Mensuales")
+    output_dir = "monthly_data"
+    if save_button:
+        try:            
+            # Ejecutar la función para guardar datos mensuales
+            tracker.save_monthly_data(output_dir=output_dir)
+            st.success(f"Datos mensuales guardados en el directorio '{output_dir}'.")
+        except Exception as e:
+            st.error(f"Error al guardar los datos mensuales: {e}")
+    elif save_button:
+        st.info("No se generaron nuevos archivos CSV.")
+
+    st.markdown("---")
+
+    # **Nueva Sección: Descargar clasificacion.json Actualizado**
+    st.subheader("Descargar clasificacion.json Actualizado")
+    try:
+        with open(tracker.categories_path, "r", encoding='utf-8') as f:
+            categories_json = json.dumps(tracker.categories, ensure_ascii=False, indent=4)
+        
+        st.download_button(
+            label="Descargar clasificacion.json",
+            data=categories_json,
+            file_name="clasificacion.json",
+            mime="application/json"
+        )
+    except Exception as e:
+        st.error(f"Error al preparar la descarga de clasificacion.json: {e}")
+
 
 # Mostrar el contenido según el menú seleccionado
 if menu == "Dashboard":

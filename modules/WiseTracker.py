@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Dict, Optional
+import os
 
 from modules.utilities import load_categories, load_expenses
 
@@ -121,6 +122,39 @@ class WiseTracker:
         gastos_pivot = gastos_agrupados.pivot(index='Año_Mes', columns='Categoría', values=amount_column).fillna(0)
         gastos_pivot = gastos_pivot.sort_index()
         return gastos_pivot
+    
+    def save_monthly_data(self, output_dir: str = 'monthly_data'):
+        """
+        Guarda archivos CSV separados para cada mes con transacciones clasificadas.
+        No sobrescribe archivos CSV que ya existen.
+
+        :param output_dir: Directorio donde se guardarán los CSV mensuales.
+        """
+        # Asegurar que el directorio de salida exista
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Verificar si existe la columna 'Año_Mes'
+        if 'Año_Mes' not in self.df.columns:
+            print("La columna 'Año_Mes' no existe en el DataFrame.")
+            return
+        
+        # Agrupar por 'Año_Mes'
+        grouped = self.df.groupby('Año_Mes')
+        
+        for period, group in grouped:
+            # Convertir Period a string para el nombre de archivo
+            period_str = str(period)
+            filename = f"{period_str}.csv"
+            filepath = os.path.join(output_dir, filename)
+            
+            # Verificar si el archivo ya existe
+            if os.path.exists(filepath):
+                print(f"El archivo '{filename}' ya existe. No se sobrescribe.")
+                continue  # Salta a la siguiente iteración
+            
+            # Guardar el grupo en CSV
+            group.to_csv(filepath, index=False)
+            print(f"Datos guardados para {period_str} en {filepath}.")
 
     def plot_expenses(self, gastos_pivot: pd.DataFrame, currency: Optional[str] = None) -> Optional[plt.Figure]:
         if gastos_pivot.empty:

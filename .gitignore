@@ -5,3 +5,5 @@ venv/
 
 # Mac OS
 .DS_Store
+
+monthly_data/

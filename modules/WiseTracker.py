@@ -38,12 +38,6 @@ class WiseTracker:
         except Exception as e:
             print(f"Error al guardar las categorías: {e}")
 
-    def convert_to_base_currency(self, amount: float, source_currency: str) -> float:
-        if source_currency not in self.exchange_rates:
-            raise ValueError(f"Tasa de cambio no definida para la divisa: {source_currency}")
-        rate = self.exchange_rates[source_currency]
-        return amount * rate
-
     def categorize_expense(self, target_name: str) -> str:
         for category, keywords in self.categories.items():
             for keyword in keywords:
@@ -72,29 +66,32 @@ class WiseTracker:
         self.df["Año_Mes"] = self.df["Created on"].dt.to_period('M')
         print("Columna 'Año_Mes' agregada exitosamente.")
 
-    def convert_amounts_to_base_currency(self, 
-                                         amount_column: str = 'Target amount (after fees)', 
-                                         currency_column: str = 'Target currency', 
-                                         new_amount_column: str = 'Amount in EUR'):
-        required_columns = {amount_column, currency_column}
-        if not required_columns.issubset(self.df.columns):
-            missing = required_columns - set(self.df.columns)
-            print(f"El DataFrame está perdiendo las siguientes columnas necesarias: {missing}")
-            return
+    def total_amount(self,after_fees: str = 'Source amount (after fees)', fees: str = 'Source fee amount', new_amount_column = 'Amount in EUR') -> pd.Series:
+
+        #################### MANERA INCORRECTA DE MANEJAR DISTINTAS DIVISAS ####################
+        # required_columns = {after_fees, fees}
+        # if not required_columns.issubset(self.df.columns):
+        #     missing = required_columns - set(self.df.columns)
+        #     print(f"El DataFrame está perdiendo las siguientes columnas necesarias: {missing}")
+        #     return
         
-        self.df[amount_column] = pd.to_numeric(self.df[amount_column], errors='coerce').fillna(0.0)
-        self.df[currency_column] = self.df[currency_column].astype(str).fillna(self.base_currency)
+        # self.df[after_fees] = pd.to_numeric(self.df[after_fees], errors='coerce').fillna(0.0)
+        # self.df[fees] = pd.to_numeric(self.df[after_fees], errors='coerce').fillna(0.0)
         
-        self.df[new_amount_column] = self.df.apply(
-            lambda row: self.convert_to_base_currency(row[amount_column], row[currency_column]), axis=1
-        )
-        print(f"Columna '{new_amount_column}' agregada exitosamente.")
+        # self.df[new_amount_column] = self.df.apply(
+        #     lambda row: row[after_fees] + row[fees], axis=1)
+        
+        # print(f"Columna '{new_amount_column}' agregada exitosamente.")
+
+        #################### AÑADIR COMO 'Amount in EUR' la columna 'Source amount (after fees)' ####################
+        # Fill na values with 0
+        self.df[new_amount_column] = self.df[after_fees].fillna(0)
 
     def process_data(self):
         # Recalcular las columnas necesarias cada vez que se procesa
         self.add_category_column()
         self.add_month_column()
-        self.convert_amounts_to_base_currency()
+        self.total_amount()
         self.add_category_column()
         print("Procesamiento de datos completado.")
 
@@ -117,11 +114,19 @@ class WiseTracker:
             missing = required_columns - set(self.df.columns)
             raise ValueError(f"El DataFrame está perdiendo las siguientes columnas necesarias: {missing}")
         
+        # Tomo los gastos y los ingresos
         gastos = self.df[self.df['Direction'].str.upper() == 'OUT'].copy()
-        gastos_agrupados = gastos.groupby(['Año_Mes', 'Categoría'])[amount_column].sum().reset_index()
-        gastos_pivot = gastos_agrupados.pivot(index='Año_Mes', columns='Categoría', values=amount_column).fillna(0)
-        gastos_pivot = gastos_pivot.sort_index()
-        return gastos_pivot
+        ingresos = self.df[self.df['Direction'].str.upper() == 'IN'].copy()
+
+        # Agrupo por 'Año_Mes' y 'Categoría' y calculo cuanto he gastado en cada categoría por mes teniendo en cuenta los ingresos y los gastos
+        gastos_pivot = gastos.groupby(['Año_Mes', 'Categoría'])[amount_column].sum().unstack().fillna(0)
+        ingresos_pivot = ingresos.groupby(['Año_Mes', 'Categoría'])[amount_column].sum().unstack().fillna(0)
+        neto_pivot = ingresos_pivot.subtract(gastos_pivot, fill_value=0)
+        neto_pivot.index = neto_pivot.index.astype(str)
+
+        # neto must be in positive values. Since normally we have more expenses than incomes, we will set to 0 the negative values and will set positive values to zero.
+        neto_pivot = neto_pivot.applymap(lambda x: -x if x < 0 else 0)
+        return neto_pivot
     
     def save_monthly_data(self, output_dir: str = 'monthly_data'):
         """

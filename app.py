@@ -36,10 +36,65 @@ def initialize_tracker():
 # Inicializar el rastreador
 tracker = initialize_tracker()
 
+# Función para guardar los datos mensuales
+def save_monthly_data(tracker: WiseTracker, output_dir: str):
+     # **Nueva Sección: Guardar Datos Mensuales**
+    st.sidebar.subheader("Guardar Datos Mensuales")
+    save_button = st.sidebar.button("Guardar Datos Mensuales")
+    output_dir = "monthly_data"
+    if save_button:
+        try:            
+            # Ejecutar la función para guardar datos mensuales
+            tracker.save_monthly_data(output_dir=output_dir)
+            st.success(f"Datos mensuales guardados en el directorio '{output_dir}'.")
+        except Exception as e:
+            st.sidebar.error(f"Error al guardar los datos mensuales: {e}")
+    elif save_button:
+        st.sidebar.info("No se generaron nuevos archivos CSV.")
+
+# Función para cargar los datos mensuales
+def load_monthly_data(tracker: WiseTracker, input_dir: str):
+    st.sidebar.markdown("---")
+    # **Nueva Sección: Cargar Datos Mensuales**
+    st.sidebar.subheader("Cargar Datos Mensuales")
+    load_button = st.sidebar.button("Cargar Datos Mensuales")
+    input_dir = "monthly_data"
+    if load_button:
+        try:
+            # Ejecutar la función para cargar datos mensuales
+            tracker.load_monthly_data(input_dir=input_dir)
+            st.sidebar.success(f"Datos mensuales cargados desde el directorio '{input_dir}'.")
+        except Exception as e:
+            st.sidebar.error(f"Error al cargar los datos mensuales: {e}")
+    elif load_button:
+        st.sidebar.info("No se cargaron nuevos archivos CSV.")
+
+# Función para guardar el json de categorías
+def save_categories(tracker: WiseTracker):
+    st.sidebar.markdown("---")
+
+    # **Nueva Sección: Descargar clasificacion.json Actualizado**
+    st.sidebar.subheader("Descargar clasificacion.json Actualizado")
+    try:
+        with open(tracker.categories_path, "r", encoding='utf-8') as f:
+            categories_json = json.dumps(tracker.categories, ensure_ascii=False, indent=4)
+        
+        st.sidebar.download_button(
+            label="Descargar clasificacion.json",
+            data=categories_json,
+            file_name="clasificacion.json",
+            mime="application/json"
+        )
+    except Exception as e:
+        st.sidebar.error(f"Error al preparar la descarga de clasificacion.json: {e}")
 
 # Sidebar para la navegación
 st.sidebar.title("Navegación")
 menu = st.sidebar.radio("Ir a", ["Dashboard", "Transacciones", "Gestión de Categorías", "Ver DataFrame"])
+
+save_monthly_data(tracker, "monthly_data")
+load_monthly_data(tracker, "monthly_data")
+save_categories(tracker)
 
 # Función para mostrar el Dashboard
 def show_dashboard(tracker: WiseTracker):
@@ -48,7 +103,7 @@ def show_dashboard(tracker: WiseTracker):
     # Calcular el neto por mes
     try:
         neto_mensual = tracker.net_amount_per_month()
-        st.success("Neto por Mes calculado correctamente.")
+        # st.success("Neto por Mes calculado correctamente.")
     except ValueError as ve:
         st.error(str(ve))
         neto_mensual = pd.Series(dtype=float)
@@ -56,14 +111,14 @@ def show_dashboard(tracker: WiseTracker):
     # Calcular los gastos por categoría y mes
     try:
         gastos_categoria = tracker.expenses_per_category_per_month()
-        st.success("Gastos por Categoría y Mes calculados correctamente.")
+        # st.success("Gastos por Categoría y Mes calculados correctamente.")
     except ValueError as ve:
         st.error(str(ve))
         gastos_categoria = pd.DataFrame()
 
     # Mostrar las columnas disponibles para depuración
-    st.markdown("### Columnas Disponibles en el DataFrame")
-    st.write(tracker.df.columns.tolist())
+    # st.markdown("### Columnas Disponibles en el DataFrame")
+    # st.write(tracker.df.columns.tolist())
 
     # Mostrar el neto por mes
     st.subheader("Neto por Mes")
@@ -180,12 +235,12 @@ def show_transactions(tracker: WiseTracker, csv_path: str):
         except Exception as e:
             st.error(f"Error al guardar los cambios: {e}")
 
-    # Agregar una sección de resumen para depuración
-    st.markdown("### Resumen de Transacciones")
-    num_out = tracker.df[tracker.df['Direction'].str.upper() == 'OUT'].shape[0]
-    num_in = tracker.df[tracker.df['Direction'].str.upper() == 'IN'].shape[0]
-    st.write(f"**Total IN:** {num_in}")
-    st.write(f"**Total OUT:** {num_out}")
+    # # Agregar una sección de resumen para depuración
+    # st.markdown("### Resumen de Transacciones")
+    # num_out = tracker.df[tracker.df['Direction'].str.upper() == 'OUT'].shape[0]
+    # num_in = tracker.df[tracker.df['Direction'].str.upper() == 'IN'].shape[0]
+    # st.write(f"**Total IN:** {num_in}")
+    # st.write(f"**Total OUT:** {num_out}")
 
     # Categorías presentes en gastos
     st.markdown("### Categorías de Gastos")
@@ -329,38 +384,7 @@ def show_category_management(tracker: WiseTracker):
                 else:
                     st.info("No se agregaron nuevas palabras clave.")
 
-    st.markdown("---")
 
-    # **Nueva Sección: Guardar Datos Mensuales**
-    st.subheader("Guardar Datos Mensuales")
-    save_button = st.button("Guardar Datos Mensuales")
-    output_dir = "monthly_data"
-    if save_button:
-        try:            
-            # Ejecutar la función para guardar datos mensuales
-            tracker.save_monthly_data(output_dir=output_dir)
-            st.success(f"Datos mensuales guardados en el directorio '{output_dir}'.")
-        except Exception as e:
-            st.error(f"Error al guardar los datos mensuales: {e}")
-    elif save_button:
-        st.info("No se generaron nuevos archivos CSV.")
-
-    st.markdown("---")
-
-    # **Nueva Sección: Descargar clasificacion.json Actualizado**
-    st.subheader("Descargar clasificacion.json Actualizado")
-    try:
-        with open(tracker.categories_path, "r", encoding='utf-8') as f:
-            categories_json = json.dumps(tracker.categories, ensure_ascii=False, indent=4)
-        
-        st.download_button(
-            label="Descargar clasificacion.json",
-            data=categories_json,
-            file_name="clasificacion.json",
-            mime="application/json"
-        )
-    except Exception as e:
-        st.error(f"Error al preparar la descarga de clasificacion.json: {e}")
 
 
 # Mostrar el contenido según el menú seleccionado

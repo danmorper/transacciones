@@ -1,9 +1,11 @@
 {
-    "supermercado": ["mercadona", "carrefour", "rewe", "edeka", "norma", "dm-drogerie", "aldi", "kaufland", "netto", "lidl"],
-    "salir": ["El Camioncito", "Damajuana", "Algabaria", "Esquinita"],
+    "supermercado": ["mercadona", "carrefour", "rewe", "edeka", "norma", "dm-drogerie", "aldi", "kaufland", "netto", "lidl", "spar", "müller", "muller"],
+    "salir": ["El Camioncito", "Damajuana", "Algabaria", "salir", "L'Osteria", "La Esquinita De Algarve", "Gallo Azul", "Plaza De Canterbury", "La Reja", "Tabanco Plateros", "Campus Cneipe", "Cruz Blanca", "Hindukush"],
     "ropa": ["decathlon", "zara", "primark", "mango", "Springfield", "pullandbear"],
     "vuelos": ["ryanair", "vueling", "iberia", "lufthansa", "airfrance", "easyjet", "tap", "swiss", "britishairways", "norwegian"],
     "lingoda": ["lingoda"],
-    "viajar": ["booking", "airbnb"]
-
+    "viajar": ["booking", "airbnb", "Deutsche Bahn", "FlixBus"],
+    "mover dinero": ["Daniel Jose Moreno Perez", "Daniel Moreno"],
+    "suscripciones": ["youtube", "apple", "openai", "ChatGPT"],
+    "tecnologia": ["mediamarkt", "saturn"]
 }

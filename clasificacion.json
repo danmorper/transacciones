@@ -5,7 +5,7 @@
     "vuelos": ["ryanair", "vueling", "iberia", "lufthansa", "airfrance", "easyjet", "tap", "swiss", "britishairways", "norwegian"],
     "lingoda": ["lingoda"],
     "viajar": ["booking", "airbnb", "Deutsche Bahn", "FlixBus"],
-    "mover dinero": ["Daniel Jose Moreno Perez", "Daniel Moreno"],
-    "suscripciones": ["youtube", "apple", "openai", "ChatGPT"],
-    "tecnologia": ["mediamarkt", "saturn"]
+    "suscripciones": ["youtube", "apple", "openai", "ChatGPT", "MUE VERKEHRSGESELLS"],
+    "tecnologia": ["mediamarkt", "saturn"],
+    "otros": [""]
 }

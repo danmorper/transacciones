@@ -18,18 +18,8 @@ CSV_PATH = "transacciones.csv"
 # Función para inicializar el rastreador y almacenar en el estado de sesión
 @st.cache_resource
 def initialize_tracker():
-    EXCHANGE_RATES = {
-        'EUR': 1.0,    # Divisa base
-        'USD': 0.92,   # 1 USD = 0.92 EUR
-        'GBP': 1.14,   # 1 GBP = 1.14 EUR
-        'HUF': 0.0024, # 1 HUF = 0.0024 EUR
-        'DKK': 0.13,   # 1 DKK = 0.13 EUR
-        'RSD': 0.0085  # 1 RSD = 0.0085 EUR
-        # Puedes añadir más divisas según sea necesario
-    }
     CATEGORIES_PATH = "clasificacion.json"
     tracker = WiseTracker(categories_path=CATEGORIES_PATH, 
-                          exchange_rates=EXCHANGE_RATES, 
                           base_currency='EUR')
     return tracker
 
@@ -104,13 +94,14 @@ def show_dashboard(tracker: WiseTracker):
     try:
         neto_mensual = tracker.net_amount_per_month()
         # st.success("Neto por Mes calculado correctamente.")
+        st.write(neto_mensual)
     except ValueError as ve:
         st.error(str(ve))
         neto_mensual = pd.Series(dtype=float)
 
     # Calcular los gastos por categoría y mes
     try:
-        gastos_categoria = tracker.expenses_per_category_per_month()
+        gastos_categoria, ingresos_categoria, neto_categoria = tracker.expenses_per_category_per_month()
         # st.success("Gastos por Categoría y Mes calculados correctamente.")
     except ValueError as ve:
         st.error(str(ve))
@@ -146,6 +137,25 @@ def show_dashboard(tracker: WiseTracker):
     else:
         st.write("No hay datos para mostrar el gráfico de gastos.")
 
+    # Mostrar los gatos netos por categoria y mes
+    st.subheader("Gastos Netos por Categoría y Mes")
+    if not neto_categoria.empty:
+        st.write("Datos de Gastos Netos por Categoría y Mes:")
+        st.dataframe(neto_categoria)
+
+        # Graficar
+        fig, ax = plt.subplots(figsize=(12, 8))
+        neto_categoria.plot(kind='bar', stacked=True, ax=ax)
+        ax.set_title('Gastos Netos por Categoría y Mes (EUR)')
+        ax.set_xlabel('Mes')
+        ax.set_ylabel('Monto Gastado (EUR)')
+        ax.legend(title='Categoría', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        st.pyplot(fig)
+
+    st.dataframe(gastos_categoria)
+    st.dataframe(ingresos_categoria)
+    st.dataframe(neto_categoria)
 # Función para mostrar las Transacciones
 def show_transactions(tracker: WiseTracker, csv_path: str):
     st.title("Transacciones")

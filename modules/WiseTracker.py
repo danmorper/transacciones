@@ -9,14 +9,25 @@ import os
 from modules.utilities import load_categories, load_expenses
 
 class WiseTracker:
-    def __init__(self, categories_path: str, exchange_rates: Dict[str, float], base_currency: str = 'EUR', csv_path: str = 'transaction-history.csv'):
+    def __init__(self, categories_path: str, base_currency: str = 'EUR', csv_path: str = 'wise.csv'):
         self.base_currency = base_currency
-        self.exchange_rates = exchange_rates
         self.categories_path = categories_path
         self.categories = self._load_categories(categories_path)
         self.df = load_expenses(csv_path=csv_path)
         self.process_data()
         print(self.df.head())
+
+    def data_check(self):
+        # Deal withEmpty values in 'Target name', 'Reference', 'Source amount (after fees)', 'Source fee amount', 'Created on', 'Direction', 'ID'
+        self.df['Target name'] = self.df['Target name'].fillna('')
+        self.df['Reference'] = self.df['Reference'].fillna('')
+        self.df['Source amount (after fees)'] = self.df['Source amount (after fees)'].fillna(0)
+        self.df['Source fee amount'] = self.df['Source fee amount'].fillna(0)
+        self.df['Created on'] = self.df['Created on'].fillna('')
+        self.df['Direction'] = self.df['Direction'].fillna('')
+        self.df['ID'] = self.df['ID'].fillna('')
+        print("Empty values have been filled.")
+
 
     def _load_categories(self, path: str) -> Dict[str, list]:
         try:
@@ -50,8 +61,9 @@ class WiseTracker:
             print("El DataFrame no contiene la columna 'Target name'.")
             return
         
-        self.df['Target name'] = self.df['Target name'].astype(str).fillna('')
-        self.df['Categoría'] = self.df['Target name'].apply(self.categorize_expense)
+        # If row has column the string 'TRANSFER' in column 'ID', then it is classified based on 'Reference'. If not, it is classified based on 'Target name'.
+        self.df['Categoría'] = self.df.apply(
+            lambda row: self.categorize_expense(row['Target name']) if 'TRANSFER' not in row['ID'] else self.categorize_expense(row['Reference']), axis=1)
         print("Columna 'Categoría' agregada exitosamente.")
 
     def add_month_column(self):
@@ -88,8 +100,8 @@ class WiseTracker:
         self.df[new_amount_column] = self.df[after_fees].fillna(0)
 
     def process_data(self):
+        self.data_check()
         # Recalcular las columnas necesarias cada vez que se procesa
-        self.add_category_column()
         self.add_month_column()
         self.total_amount()
         self.add_category_column()
@@ -126,7 +138,7 @@ class WiseTracker:
 
         # neto must be in positive values. Since normally we have more expenses than incomes, we will set to 0 the negative values and will set positive values to zero.
         neto_pivot = neto_pivot.applymap(lambda x: -x if x < 0 else 0)
-        return neto_pivot
+        return gastos_pivot, ingresos_pivot, neto_pivot
     
     def save_monthly_data(self, output_dir: str = 'monthly_data'):
         """

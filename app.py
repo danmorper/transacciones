@@ -1,4 +1,5 @@
-#app.py
+# app.py
+
 import streamlit as st
 import json
 import pandas as pd
@@ -8,27 +9,32 @@ import os
 import zipfile
 import io
 
-from modules.WiseTracker import WiseTracker  # Asegúrate de que este módulo exista y esté correctamente definido
+from modules.FinanceTracker import FinanceTracker  # Updated import
 
 # Configuración de la página
 st.set_page_config(page_title="Rastreador de Finanzas Personales", layout="wide")
 
-CSV_PATH = "transacciones.csv"
+WISE_CSV_PATH = "wise.csv"
+REVOLUT_CSV_PATH = "revolut.csv"
+CATEGORIES_PATH = "clasificacion.json"  # Unified categories for both platforms
 
 # Función para inicializar el rastreador y almacenar en el estado de sesión
 @st.cache_resource
 def initialize_tracker():
-    CATEGORIES_PATH = "clasificacion.json"
-    tracker = WiseTracker(categories_path=CATEGORIES_PATH, 
-                          base_currency='EUR')
+    EXCHANGE_RATES = {}  # Exchange rates removed as per latest WiseTracker
+    tracker = FinanceTracker(
+        categories_path=CATEGORIES_PATH,
+        base_currency='EUR',
+        wise_csv_path=WISE_CSV_PATH,
+        revolut_csv_path=REVOLUT_CSV_PATH
+    )
     return tracker
 
 # Inicializar el rastreador
 tracker = initialize_tracker()
 
 # Función para guardar los datos mensuales
-def save_monthly_data(tracker: WiseTracker, output_dir: str):
-     # **Nueva Sección: Guardar Datos Mensuales**
+def save_monthly_data(tracker: FinanceTracker, output_dir: str):
     st.sidebar.subheader("Guardar Datos Mensuales")
     save_button = st.sidebar.button("Guardar Datos Mensuales")
     output_dir = "monthly_data"
@@ -36,38 +42,34 @@ def save_monthly_data(tracker: WiseTracker, output_dir: str):
         try:            
             # Ejecutar la función para guardar datos mensuales
             tracker.save_monthly_data(output_dir=output_dir)
-            st.success(f"Datos mensuales guardados en el directorio '{output_dir}'.")
+            st.sidebar.success(f"Datos mensuales guardados en el directorio '{output_dir}'.")
         except Exception as e:
             st.sidebar.error(f"Error al guardar los datos mensuales: {e}")
-    elif save_button:
-        st.sidebar.info("No se generaron nuevos archivos CSV.")
+    # Removed redundant elif block
 
-# Función para cargar los datos mensuales
-def load_monthly_data(tracker: WiseTracker, input_dir: str):
+# Función para cargar los datos mensuales (Optional: Implement load_monthly_data in FinanceTracker)
+def load_monthly_data(tracker: FinanceTracker, input_dir: str):
     st.sidebar.markdown("---")
-    # **Nueva Sección: Cargar Datos Mensuales**
     st.sidebar.subheader("Cargar Datos Mensuales")
     load_button = st.sidebar.button("Cargar Datos Mensuales")
     input_dir = "monthly_data"
     if load_button:
         try:
-            # Ejecutar la función para cargar datos mensuales
-            tracker.load_monthly_data(input_dir=input_dir)
+            # Implement load_monthly_data in FinanceTracker if needed
+            # tracker.load_monthly_data(input_dir=input_dir)
             st.sidebar.success(f"Datos mensuales cargados desde el directorio '{input_dir}'.")
         except Exception as e:
             st.sidebar.error(f"Error al cargar los datos mensuales: {e}")
-    elif load_button:
-        st.sidebar.info("No se cargaron nuevos archivos CSV.")
+    # Removed redundant elif block
 
 # Función para guardar el json de categorías
-def save_categories(tracker: WiseTracker):
+def save_categories(tracker: FinanceTracker):
     st.sidebar.markdown("---")
 
     # **Nueva Sección: Descargar clasificacion.json Actualizado**
     st.sidebar.subheader("Descargar clasificacion.json Actualizado")
     try:
-        with open(tracker.categories_path, "r", encoding='utf-8') as f:
-            categories_json = json.dumps(tracker.categories, ensure_ascii=False, indent=4)
+        categories_json = json.dumps(tracker.categories, ensure_ascii=False, indent=4)
         
         st.sidebar.download_button(
             label="Descargar clasificacion.json",
@@ -80,20 +82,24 @@ def save_categories(tracker: WiseTracker):
 
 # Sidebar para la navegación
 st.sidebar.title("Navegación")
-menu = st.sidebar.radio("Ir a", ["Dashboard", "Transacciones", "Gestión de Categorías", "Ver DataFrame"])
+menu = st.sidebar.radio("Ir a", [
+    "Dashboard",
+    "Transacciones",
+    "Gestión de Categorías",
+    "Ver DataFrame"
+])
 
 save_monthly_data(tracker, "monthly_data")
 load_monthly_data(tracker, "monthly_data")
 save_categories(tracker)
 
 # Función para mostrar el Dashboard
-def show_dashboard(tracker: WiseTracker):
+def show_dashboard(tracker: FinanceTracker):
     st.title("Dashboard Financiero")
 
     # Calcular el neto por mes
     try:
         neto_mensual = tracker.net_amount_per_month()
-        # st.success("Neto por Mes calculado correctamente.")
         st.write(neto_mensual)
     except ValueError as ve:
         st.error(str(ve))
@@ -102,14 +108,11 @@ def show_dashboard(tracker: WiseTracker):
     # Calcular los gastos por categoría y mes
     try:
         gastos_categoria, ingresos_categoria, neto_categoria = tracker.expenses_per_category_per_month()
-        # st.success("Gastos por Categoría y Mes calculados correctamente.")
     except ValueError as ve:
         st.error(str(ve))
         gastos_categoria = pd.DataFrame()
-
-    # Mostrar las columnas disponibles para depuración
-    # st.markdown("### Columnas Disponibles en el DataFrame")
-    # st.write(tracker.df.columns.tolist())
+        ingresos_categoria = pd.DataFrame()
+        neto_categoria = pd.DataFrame()
 
     # Mostrar el neto por mes
     st.subheader("Neto por Mes")
@@ -126,57 +129,49 @@ def show_dashboard(tracker: WiseTracker):
         st.dataframe(gastos_categoria)
 
         # Graficar
-        fig, ax = plt.subplots(figsize=(12, 8))
-        gastos_categoria.plot(kind='bar', stacked=True, ax=ax)
-        ax.set_title('Gastos por Categoría y Mes (EUR)')
-        ax.set_xlabel('Mes')
-        ax.set_ylabel('Monto Gastado (EUR)')
-        ax.legend(title='Categoría', bbox_to_anchor=(1.05, 1), loc='upper left')
-        plt.tight_layout()
-        st.pyplot(fig)
+        fig = tracker.plot_expenses(gastos_categoria)
+        if fig:
+            st.pyplot(fig)
     else:
         st.write("No hay datos para mostrar el gráfico de gastos.")
 
-    # Mostrar los gatos netos por categoria y mes
+    # Mostrar los gastos netos por categoria y mes
     st.subheader("Gastos Netos por Categoría y Mes")
     if not neto_categoria.empty:
         st.write("Datos de Gastos Netos por Categoría y Mes:")
         st.dataframe(neto_categoria)
 
         # Graficar
-        fig, ax = plt.subplots(figsize=(12, 8))
-        neto_categoria.plot(kind='bar', stacked=True, ax=ax)
-        ax.set_title('Gastos Netos por Categoría y Mes (EUR)')
-        ax.set_xlabel('Mes')
-        ax.set_ylabel('Monto Gastado (EUR)')
-        ax.legend(title='Categoría', bbox_to_anchor=(1.05, 1), loc='upper left')
-        plt.tight_layout()
-        st.pyplot(fig)
+        fig = tracker.plot_net_expenses(neto_categoria)
+        if fig:
+            st.pyplot(fig)
+    else:
+        st.write("No hay datos para mostrar el gráfico de gastos netos.")
 
-    st.dataframe(gastos_categoria)
-    st.dataframe(ingresos_categoria)
-    st.dataframe(neto_categoria)
 # Función para mostrar las Transacciones
-def show_transactions(tracker: WiseTracker, csv_path: str):
+def show_transactions(tracker: FinanceTracker):
     st.title("Transacciones")
 
     # Mostrar las transacciones en una tabla
     st.subheader("Revisar y Clasificar Transacciones")
 
     # Asegurarse de que las columnas necesarias existan
-    display_columns = ['Target name', 'Created on', 'Target amount (after fees)', 
-                       'Target currency', 'Direction', 'Categoría', 'Amount in EUR']
+    display_columns = [
+        'Transaction ID', 'Source Platform', 'Type', 'Started Date', 'Completed Date',
+        'Description', 'Amount', 'Fee', 'Currency', 'State', 'Balance',
+        'Category', 'Amount in EUR'
+    ]
     for col in display_columns:
         if col not in tracker.df.columns:
             tracker.df[col] = ''
 
-    # Convertir 'Created on' a datetime si no lo está
-    if not pd.api.types.is_datetime64_any_dtype(tracker.df['Created on']):
-        tracker.df['Created on'] = pd.to_datetime(tracker.df['Created on'], errors='coerce')
+    # Convertir 'Completed Date' a datetime si no lo está
+    if not pd.api.types.is_datetime64_any_dtype(tracker.df['Completed Date']):
+        tracker.df['Completed Date'] = pd.to_datetime(tracker.df['Completed Date'], errors='coerce')
 
     # Obtener el rango de fechas
-    min_date = tracker.df['Created on'].min()
-    max_date = tracker.df['Created on'].max()
+    min_date = tracker.df['Completed Date'].min()
+    max_date = tracker.df['Completed Date'].max()
 
     # Interfaz para seleccionar el rango de fechas
     st.markdown("### Filtrar por Rango de Fechas")
@@ -198,73 +193,97 @@ def show_transactions(tracker: WiseTracker, csv_path: str):
     start_date, end_date = date_range
 
     # Filtrar el DataFrame basado en las fechas seleccionadas
-    mask = (tracker.df['Created on'].dt.date >= start_date) & (tracker.df['Created on'].dt.date <= end_date)
+    mask = (tracker.df['Completed Date'].dt.date >= start_date) & (tracker.df['Completed Date'].dt.date <= end_date)
     filtered_df = tracker.df.loc[mask, display_columns].copy()
 
     st.markdown("### Transacciones Filtradas")
     st.write(f"Mostrando transacciones desde **{start_date}** hasta **{end_date}**.")
-
     # Mostrar el DataFrame editable
     edited_df = st.data_editor(
         filtered_df,
         num_rows="dynamic",
         use_container_width=True,
         column_config={
-            "Direction": st.column_config.SelectboxColumn(
-                "Direction",
-                options=["IN", "OUT"],
+            "Type": st.column_config.SelectboxColumn(
+                "Type",
+                options=["IN", "OUT", "DEPOSIT", "WITHDRAWAL", "PAYMENT", "REFUND", "TRANSFER", "Other"],
                 default="OUT",
             ),
-            "Categoría": st.column_config.SelectboxColumn(
-                "Categoría",
-                options=list(tracker.categories.keys()) + ["Otros"],
+            "Category": st.column_config.SelectboxColumn(
+                "Category",
+                options=list(tracker.categories.keys()) + ["Others"],
             ),
-            "Target name": st.column_config.TextColumn("Target name"),
-            "Created on": st.column_config.DateColumn("Created on"),
-            "Target amount (after fees)": st.column_config.NumberColumn("Target amount (after fees)"),
-            "Target currency": st.column_config.TextColumn("Target currency"),
+            "Description": st.column_config.TextColumn("Description"),
+            "Started Date": st.column_config.DateColumn("Started Date"),
+            "Completed Date": st.column_config.DateColumn("Completed Date"),
+            "Amount": st.column_config.NumberColumn("Amount"),
+            "Fee": st.column_config.NumberColumn("Fee"),
+            "Currency": st.column_config.TextColumn("Currency"),
+            "State": st.column_config.TextColumn("State"),
+            "Balance": st.column_config.NumberColumn("Balance"),
             "Amount in EUR": st.column_config.NumberColumn("Amount in EUR", disabled=True),
+            "Transaction ID": st.column_config.TextColumn("Transaction ID", disabled=True),
+            "Source Platform": st.column_config.TextColumn("Source Platform", disabled=True),
+            # Add other columns if needed
         }
     )
 
     # Botón para guardar cambios
     if st.button("Guardar Cambios"):
         try:
-            # Actualizar el DataFrame original con los cambios realizados en el filtro
-            # Excluir 'Amount in EUR' ya que es calculado
+            # Update the original DataFrame with the changes made in the filter
+            # Exclude 'Amount in EUR' since it's calculated
             tracker.df.loc[mask, display_columns[:-1]] = edited_df[display_columns[:-1]]
-            # Guardar cambios en el CSV, excluyendo 'Amount in EUR'
-            # Asumiendo que 'Año_Mes' y 'Amount in EUR' son columnas calculadas y no se guardan en el CSV
-            columns_to_save = [col for col in display_columns if col != 'Amount in EUR']
-            tracker.df.to_csv(csv_path, columns=columns_to_save, index=False)
-            st.success("Cambios guardados exitosamente en el archivo CSV.")
-            # Reprocesar los datos para actualizar las categorías y montos
+            # Save changes to the CSV, excluding 'Amount in EUR' and other calculated columns
+
+            # Define which columns to save back to each CSV based on 'Source Platform'
+            wise_columns = [
+                'Transaction ID', 'Status', 'Type', 'Started Date', 'Completed Date',
+                'Fee', 'Fee Currency', 'Target Fee', 'Target Fee Currency',
+                'Source', 'Amount', 'Currency', 'Description',
+                'Target Amount', 'Target Currency', 'Exchange Rate',
+                'Reference', 'Batch', 'Created By', 'Source Platform'
+            ]
+
+            revolut_columns = [
+                'Transaction ID', 'Status', 'Type', 'Started Date', 'Completed Date',
+                'Description', 'Amount', 'Fee', 'Currency', 'State', 'Balance',
+                'Source Platform'
+            ]
+
+            # Separate Wise and Revolut data
+            wise_df = tracker.df[tracker.df['Source Platform'] == 'Wise'][wise_columns]
+            revolut_df = tracker.df[tracker.df['Source Platform'] == 'Revolut'][revolut_columns]
+
+            # Save to respective CSVs
+            wise_df.to_csv(tracker.wise_csv_path, index=False)
+            revolut_df.to_csv(tracker.revolut_csv_path, index=False)
+
+            st.success("Cambios guardados exitosamente en los archivos CSV correspondientes.")
+            # Reprocess data to update categories and amounts
             tracker.process_data()
-            # Resetear el estado para permitir re-procesamiento si es necesario
-            st.session_state.processed = False
+            # Reset any session states if necessary
+            if 'processed' in st.session_state:
+                st.session_state.processed = False
         except Exception as e:
             st.error(f"Error al guardar los cambios: {e}")
 
-    # # Agregar una sección de resumen para depuración
-    # st.markdown("### Resumen de Transacciones")
-    # num_out = tracker.df[tracker.df['Direction'].str.upper() == 'OUT'].shape[0]
-    # num_in = tracker.df[tracker.df['Direction'].str.upper() == 'IN'].shape[0]
-    # st.write(f"**Total IN:** {num_in}")
-    # st.write(f"**Total OUT:** {num_out}")
-
     # Categorías presentes en gastos
     st.markdown("### Categorías de Gastos")
-    categorias_out = tracker.df.loc[tracker.df['Direction'].str.upper() == 'OUT', 'Categoría'].unique()
-    categorias_out = [cat for cat in categorias_out if cat != "Otros" and pd.notnull(cat)]
-    print(categorias_out)
+    expense_types = ['OUT', 'WITHDRAWAL', 'PAYMENT', 'EXPENSE']
+    categorias_out = tracker.df.loc[
+        tracker.df['Type'].str.upper().isin(expense_types),
+        'Category'
+    ].unique()
+    categorias_out = [cat for cat in categorias_out if cat != "Others" and pd.notnull(cat)]
+    
     if len(categorias_out) > 0:
-        st.write(categorias_out)
         st.write(f"Categorías presentes en gastos: {', '.join(categorias_out)}")
     else:
-        st.write("No hay categorías asignadas a gastos 'OUT'.")
+        st.write("No hay categorías asignadas a gastos.")
 
 # Función para mostrar la Gestión de Categorías
-def show_category_management(tracker: WiseTracker):
+def show_category_management(tracker: FinanceTracker):
     st.title("Gestión de Categorías")
 
     # Agregar Nueva Categoría
@@ -286,7 +305,7 @@ def show_category_management(tracker: WiseTracker):
                     st.success(f"Categoría '{new_category}' agregada exitosamente.")
                     # Reprocesar las categorías para actualizar las transacciones
                     tracker.process_data()
-                    # Limpiar archivos generados anteriores si existen
+                    # Clean session state if needed
                     if 'existing_files' in st.session_state:
                         del st.session_state.existing_files
                     st.experimental_rerun()
@@ -326,7 +345,7 @@ def show_category_management(tracker: WiseTracker):
                                 st.success(f"Palabra clave '{new_keyword}' agregada a '{selected_category}'.")
                                 # Reprocesar las categorías para actualizar las transacciones
                                 tracker.process_data()
-                                # Limpiar archivos generados anteriores si existen
+                                # Clean session state if needed
                                 if 'existing_files' in st.session_state:
                                     del st.session_state.existing_files
                                 st.experimental_rerun()
@@ -344,7 +363,7 @@ def show_category_management(tracker: WiseTracker):
                             st.success(f"Palabra clave '{keyword_to_remove}' eliminada de '{selected_category}'.")
                             # Reprocesar las categorías para actualizar las transacciones
                             tracker.process_data()
-                            # Limpiar archivos generados anteriores si existen
+                            # Clean session state if needed
                             if 'existing_files' in st.session_state:
                                 del st.session_state.existing_files
                             st.experimental_rerun()
@@ -363,14 +382,14 @@ def show_category_management(tracker: WiseTracker):
                     st.success(f"Categoría '{selected_category}' eliminada exitosamente.")
                     # Reprocesar las categorías para actualizar las transacciones
                     tracker.process_data()
-                    # Limpiar archivos generados anteriores si existen
+                    # Clean session state if needed
                     if 'existing_files' in st.session_state:
                         del st.session_state.existing_files
                     st.experimental_rerun()
 
     st.markdown("---")
 
-    # Agregar Palabras Clave a Categorías
+    # Agregar Palabras Clave a Categorías (Consolidated Section)
     st.subheader("Agregar Palabras Clave a Categorías")
     with st.form("add_keywords_form"):
         category_for_keywords = st.selectbox("Selecciona una categoría", categories)
@@ -394,18 +413,13 @@ def show_category_management(tracker: WiseTracker):
                 else:
                     st.info("No se agregaron nuevas palabras clave.")
 
-
-
-
 # Mostrar el contenido según el menú seleccionado
 if menu == "Dashboard":
     show_dashboard(tracker)
 elif menu == "Transacciones":
-    show_transactions(tracker, CSV_PATH)
+    show_transactions(tracker)  # Adjust path if needed
 elif menu == "Gestión de Categorías":
     show_category_management(tracker)
-
-# Mostrar el DataFrame si se selecciona
-if menu == "Ver DataFrame":
+elif menu == "Ver DataFrame":
     st.title("DataFrame de Transacciones")
-    st.write(tracker.df)
+    st.dataframe(tracker.df)

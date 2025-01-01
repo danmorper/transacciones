@@ -3,9 +3,9 @@
     "salir": ["El Camioncito", "Damajuana", "Algabaria", "salir", "L'Osteria", "La Esquinita De Algarve", "Gallo Azul", "Plaza De Canterbury", "La Reja", "Tabanco Plateros", "Campus Cneipe", "Cruz Blanca", "Hindukush"],
     "ropa": ["decathlon", "zara", "primark", "mango", "Springfield", "pullandbear"],
     "vuelos": ["ryanair", "vueling", "iberia", "lufthansa", "airfrance", "easyjet", "tap", "swiss", "britishairways", "norwegian"],
-    "lingoda": ["lingoda"],
     "viajar": ["booking", "airbnb", "Deutsche Bahn", "FlixBus"],
-    "suscripciones": ["youtube", "apple", "openai", "ChatGPT", "MUE VERKEHRSGESELLS"],
+    "suscripciones": ["youtube", "apple", "openai", "ChatGPT", "MUE VERKEHRSGESELLS", "nordvpn"],
     "tecnologia": ["mediamarkt", "saturn"],
+    "educacion": ["udemy", "coursera", "lingoda", "lingopie"],
     "otros": [""]
 }
